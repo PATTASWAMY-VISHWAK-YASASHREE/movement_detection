@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="fas fa-camera"></i> Alert Dashboard</h1>
+        <p class="text-muted">Motion detection alerts and captured images - Optimized with lazy loading</p>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <h4>{{ stats.total_alerts or 0 }}</h4>
+                <p class="mb-0">Total Alerts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <i class="fas fa-images fa-2x mb-2"></i>
+                <h4>{{ stats.total_images or 0 }}</h4>
+                <p class="mb-0">Images Stored</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x mb-2"></i>
+                <h4>{{ stats.alerts_24h or 0 }}</h4>
+                <p class="mb-0">Last 24 Hours</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card">
+            <div class="card-body text-center">
+                <i class="fas fa-database fa-2x mb-2"></i>
+                <h4>{{ stats.total_size_mb or 0 }} MB</h4>
+                <p class="mb-0">Storage Used</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">Detection Type</label>
+                <select name="type" class="form-select">
+                    <option value="all" {% if filters.type == 'all' %}selected{% endif %}>All Types</option>
+                    {% for dtype, count in stats.detection_types %}
+                    <option value="{{ dtype }}" {% if filters.type == dtype %}selected{% endif %}>
+                        {{ dtype.replace('_', ' ').title() }} ({{ count }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ filters.date_from or '' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ filters.date_to or '' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Search Images</label>
+                <input type="text" name="search" class="form-control" placeholder="Search by filename or objects..." value="{{ filters.search or '' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <a href="/" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Info -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <strong>{{ pagination.total_count }}</strong> alerts found
+        {% if pagination.total_count > 0 %}
+        (Page {{ pagination.page }} of {{ pagination.total_pages }})
+        {% endif %}
+        {% if filters.search %}
+        <span class="badge bg-info ms-2">Search: "{{ filters.search }}"</span>
+        {% endif %}
+    </div>
+    <div>
+        <select class="form-select form-select-sm" style="width: auto;" onchange="changePerPage(this.value)">
+            <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20 per page</option>
+            <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50 per page</option>
+            <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100 per page</option>
+        </select>
+    </div>
+</div>
+
+<!-- Alerts Grid -->
+<div class="row">
+    {% for alert in alerts %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card alert-card h-100">
+            {% if alert[7] %}  <!-- image_id -->
+            <!-- Lazy loading placeholder -->
+            <div class="lazy-image-container" data-image-id="{{ alert[7] }}">
+                <div class="image-placeholder bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status" style="display: none;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <i class="fas fa-image fa-2x text-muted"></i>
+                        <div class="mt-2">
+                            <small class="text-muted">Click to load image</small>
+                        </div>
+                    </div>
+                </div>
+                <img class="card-img-top image-thumbnail d-none" 
+                     style="max-height: 200px; object-fit: cover; cursor: pointer;"
+                     alt="Alert Image"
+                     onclick="viewFullImage({{ alert[7] }})">
+            </div>
+            {% else %}
+            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                <i class="fas fa-image fa-3x text-muted"></i>
+            </div>
+            {% endif %}
+            
+            <div class="card-body">
+                <h6 class="card-title">
+                    <span class="badge bg-primary">{{ alert[2].replace('_', ' ').title() }}</span>
+                    {% if alert[8] %}  <!-- image_name -->
+                    <small class="text-muted d-block mt-1">{{ alert[8] }}</small>
+                    {% endif %}
+                </h6>
+                <p class="card-text">
+                    <small class="text-muted">
+                        <i class="fas fa-clock"></i> {{ alert[1].strftime('%Y-%m-%d %H:%M:%S') if alert[1] }}
+                    </small>
+                </p>
+                <div class="row text-center">
+                    <div class="col">
+                        <small class="text-muted">Motion Areas</small><br>
+                        <strong>{{ alert[3] or 0 }}</strong>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted">Sensitivity</small><br>
+                        <strong>{{ alert[4] or 0 }}%</strong>
+                    </div>
+                    {% if alert[10] and alert[11] %}  <!-- width and height -->
+                    <div class="col">
+                        <small class="text-muted">Size</small><br>
+                        <strong>{{ alert[10] }}x{{ alert[11] }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if alert[5] and alert[5] != '[]' %}  <!-- objects_detected -->
+                <div class="mt-2">
+                    <small class="text-muted">Objects:</small>
+                    <div class="mt-1">
+                        {% for obj in alert[5] %}
+                        <span class="badge bg-success me-1">{{ obj }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if alert[7] %}  <!-- Show load button if image exists -->
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-primary load-image-btn" 
+                            data-image-id="{{ alert[7] }}"
+                            onclick="loadThumbnail({{ alert[7] }})">
+                        <i class="fas fa-eye"></i> Load Image
+                    </button>
+                    <button class="btn btn-sm btn-primary d-none view-full-btn" 
+                            onclick="viewFullImage({{ alert[7] }})">
+                        <i class="fas fa-expand"></i> View Full Size
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if pagination.total_count == 0 %}
+<div class="text-center py-5">
+    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+    <h4>No alerts found</h4>
+    <p class="text-muted">Try adjusting your filters or check back later for new alerts.</p>
+</div>
+{% endif %}
+
+<!-- Pagination -->
+{% if pagination.total_pages > 1 %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if pagination.page > 1 %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ pagination.page - 1 }}&per_page={{ pagination.per_page }}&type={{ filters.type }}&date_from={{ filters.date_from or '' }}&date_to={{ filters.date_to or '' }}&search={{ filters.search or '' }}">Previous</a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in range(1, pagination.total_pages + 1) %}
+        {% if page_num == pagination.page %}
+        <li class="page-item active">
+            <span class="page-link">{{ page_num }}</span>
+        </li>
+        {% elif page_num <= 3 or page_num >= pagination.total_pages - 2 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_num }}&per_page={{ pagination.per_page }}&type={{ filters.type }}&date_from={{ filters.date_from or '' }}&date_to={{ filters.date_to or '' }}&search={{ filters.search or '' }}">{{ page_num }}</a>
+        </li>
+        {% elif page_num == 4 or page_num == pagination.total_pages - 3 %}
+        <li class="page-item disabled">
+            <span class="page-link">...</span>
+        </li>
+        {% endif %}
+        {% endfor %}
+        
+        {% if pagination.page < pagination.total_pages %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ pagination.page + 1 }}&per_page={{ pagination.per_page }}&type={{ filters.type }}&date_from={{ filters.date_from or '' }}&date_to={{ filters.date_to or '' }}&search={{ filters.search or '' }}">Next</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function changePerPage(value) {
+    const url = new URL(window.location);
+    url.searchParams.set('per_page', value);
+    url.searchParams.set('page', 1);  // Reset to first page
+    window.location = url;
+}
+
+// Lazy loading functions
+function loadThumbnail(imageId) {
+    const container = document.querySelector(`[data-image-id="${imageId}"]`);
+    const placeholder = container.querySelector('.image-placeholder');
+    const img = container.querySelector('.image-thumbnail');
+    const loadBtn = document.querySelector(`[data-image-id="${imageId}"].load-image-btn`);
+    const viewBtn = loadBtn.parentElement.querySelector('.view-full-btn');
+    const spinner = placeholder.querySelector('.spinner-border');
+    
+    // Show loading state
+    spinner.style.display = 'block';
+    placeholder.querySelector('.fa-image').style.display = 'none';
+    placeholder.querySelector('small').textContent = 'Loading...';
+    loadBtn.disabled = true;
+    
+    // Load thumbnail
+    img.src = `/thumbnail/${imageId}`;
+    img.onload = function() {
+        // Hide placeholder, show image
+        placeholder.style.display = 'none';
+        img.classList.remove('d-none');
+        
+        // Update buttons
+        loadBtn.style.display = 'none';
+        viewBtn.classList.remove('d-none');
+    };
+    
+    img.onerror = function() {
+        // Handle error
+        spinner.style.display = 'none';
+        placeholder.querySelector('.fa-image').style.display = 'block';
+        placeholder.querySelector('small').textContent = 'Failed to load image';
+        loadBtn.disabled = false;
+    };
+}
+
+function viewFullImage(imageId) {
+    // Open full-size image in new tab
+    window.open(`/image/${imageId}`, '_blank');
+}
+
+// Auto-load images when search is performed
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchQuery = urlParams.get('search');
+    
+    // If user searched for something, auto-load first few images
+    if (searchQuery && searchQuery.length > 0) {
+        const imageContainers = document.querySelectorAll('.lazy-image-container[data-image-id]');
+        console.log(`🔍 Search detected: "${searchQuery}" - Auto-loading first 6 images`);
+        imageContainers.forEach((container, index) => {
+            if (index < 6) {  // Auto-load first 6 search results
+                const imageId = container.getAttribute('data-image-id');
+                setTimeout(() => loadThumbnail(imageId), index * 200);  // Stagger loading
+            }
+        });
+    }
+});
+
+// Intersection Observer for automatic loading when scrolling (optional)
+const observerOptions = {
+    root: null,
+    rootMargin: '100px',
+    threshold: 0.1
+};
+
+const imageObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const container = entry.target;
+            const imageId = container.getAttribute('data-image-id');
+            const loadBtn = document.querySelector(`[data-image-id="${imageId}"].load-image-btn`);
+            
+            // Only auto-load if not in search mode and user hasn't manually loaded it yet
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchQuery = urlParams.get('search');
+            
+            if (!searchQuery && loadBtn && loadBtn.style.display !== 'none') {
+                // Auto-load when scrolling into view (only if not searching)
+                setTimeout(() => loadThumbnail(imageId), 100);
+            }
+            
+            // Stop observing this element
+            imageObserver.unobserve(container);
+        }
+    });
+}, observerOptions);
+
+// Start observing lazy image containers when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const lazyContainers = document.querySelectorAll('.lazy-image-container[data-image-id]');
+    lazyContainers.forEach(container => {
+        imageObserver.observe(container);
+    });
+});
+
+// Auto-refresh stats every 30 seconds
+setInterval(function() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            // Update stats cards if needed
+            console.log('📊 Stats updated:', data);
+        })
+        .catch(error => console.error('Error updating stats:', error));
+}, 30000);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ctrl+F to focus search box
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        document.querySelector('input[name="search"]').focus();
+    }
+    
+    // Escape to clear search
+    if (e.key === 'Escape') {
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput === document.activeElement) {
+            searchInput.value = '';
+        }
+    }
+});
+
+// Performance monitoring
+console.log('⚡ Lazy loading enabled - Images will load on demand');
+console.log('🔍 Search for specific images to auto-load relevant results');
+console.log('📜 Scroll down to load more images automatically');
+</script>
+{% endblock %}

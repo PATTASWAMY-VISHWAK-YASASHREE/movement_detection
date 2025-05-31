@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless Security Camera</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .camera-container {
+            max-width: 800px;
+            margin: 2rem auto;
+        }
+        
+        #videoElement {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-connecting {
+            background-color: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status-connected {
+            background-color: #28a745;
+        }
+        
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .device-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .controls {
+            margin: 1rem 0;
+        }
+        
+        .btn-start {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            color: white;
+            font-weight: bold;
+        }
+          .btn-stop {
+            background: linear-gradient(45deg, #dc3545, #fd7e14);
+            border: none;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .permission-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .permission-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            margin: 1rem;
+            text-align: center;
+        }
+        
+        .permission-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        .troubleshooting-steps {
+            text-align: left;
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .browser-instructions {
+            display: none;
+            background: #e3f2fd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .error-alert {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="camera-container">
+            <div class="text-center mb-4">
+                <h1 class="display-4">🔐 Wireless Security Camera</h1>
+                <p class="lead">Connect your device camera to the security system</p>
+            </div>
+            
+            <div class="device-info">
+                <h5>📱 Device Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Device ID:</strong> <span id="deviceId">Generating...</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Connection Status:</strong> 
+                        <span class="status-indicator status-disconnected" id="statusIndicator"></span>
+                        <span id="connectionStatus">Disconnected</span>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <strong>Server:</strong> <span id="serverAddress">{{ server_ip }}:{{ server_port }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Camera Resolution:</strong> <span id="cameraResolution">Not detected</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <video id="videoElement" autoplay muted playsinline></video>
+                <canvas id="canvasElement" style="display: none;"></canvas>
+                
+                <div class="controls">
+                    <button id="startButton" class="btn btn-start btn-lg me-2">
+                        🎥 Start Camera Stream
+                    </button>
+                    <button id="stopButton" class="btn btn-stop btn-lg" disabled>
+                        🛑 Stop Camera Stream
+                    </button>
+                </div>
+                  <div class="alert alert-info">
+                    <strong>💡 Instructions:</strong>
+                    <ul class="text-start mt-2 mb-0">
+                        <li>Allow camera access when prompted by your browser</li>
+                        <li>Click "Start Camera Stream" to begin broadcasting</li>
+                        <li>Your camera feed will be processed for motion detection</li>
+                        <li>Keep this page open while contributing to security monitoring</li>
+                    </ul>
+                </div>
+                
+                <!-- Error Alert for Camera Issues -->
+                <div class="alert alert-danger error-alert" id="errorAlert">
+                    <strong>⚠️ Camera Access Issue</strong>
+                    <p id="errorMessage">Unable to access camera. Please check the troubleshooting steps below.</p>
+                    <button class="btn btn-outline-danger btn-sm" onclick="showTroubleshooting()">
+                        🔧 Show Troubleshooting Steps
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Camera Permission Modal -->
+            <div class="permission-modal" id="permissionModal">
+                <div class="permission-content">
+                    <div class="permission-icon">📹</div>
+                    <h4>Camera Permission Required</h4>
+                    <p>This security camera system needs access to your device's camera to function properly.</p>
+                    
+                    <div class="troubleshooting-steps">
+                        <h6>🔧 Troubleshooting Steps:</h6>
+                        <ol>
+                            <li><strong>Check browser permissions:</strong> Look for a camera icon in your address bar</li>
+                            <li><strong>Allow camera access:</strong> Click the camera icon and select "Allow"</li>
+                            <li><strong>Refresh the page:</strong> After granting permission, refresh this page</li>
+                            <li><strong>Check other apps:</strong> Close other applications using your camera</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="browser-instructions" id="chromeInstructions">
+                        <h6>🌐 Chrome Instructions:</h6>
+                        <ol>
+                            <li>Click the camera icon in the address bar</li>
+                            <li>Select "Always allow" for this site</li>
+                            <li>Click "Done" and refresh the page</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="browser-instructions" id="firefoxInstructions">
+                        <h6>🦊 Firefox Instructions:</h6>
+                        <ol>
+                            <li>Click the shield icon in the address bar</li>
+                            <li>Click "Turn off blocking for this site"</li>
+                            <li>Refresh the page and allow camera access</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="browser-instructions" id="safariInstructions">
+                        <h6>🧭 Safari Instructions:</h6>
+                        <ol>
+                            <li>Go to Safari → Preferences → Websites</li>
+                            <li>Click "Camera" in the sidebar</li>
+                            <li>Set this website to "Allow"</li>
+                            <li>Refresh the page</li>
+                        </ol>
+                    </div>
+                      <div class="mt-3">
+                        <button class="btn btn-primary me-2" onclick="retryCamera()">
+                            🔄 Try Again
+                        </button>
+                        <a href="/test" class="btn btn-info me-2">
+                            🔧 Camera Test & Troubleshooting
+                        </a>
+                        <button class="btn btn-secondary me-2" onclick="showBrowserInstructions()">
+                            📖 Browser-Specific Help
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="closePermissionModal()">
+                            ✕ Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h6>📊 Frames Sent</h6>
+                    <div class="h4 text-primary" id="framesSent">0</div>
+                </div>
+                <div class="stat-card">
+                    <h6>⏱️ Connection Time</h6>
+                    <div class="h4 text-success" id="connectionTime">00:00:00</div>
+                </div>
+                <div class="stat-card">
+                    <h6>📱 Active Devices</h6>
+                    <div class="h4 text-info" id="activeDevices">0</div>
+                </div>
+                <div class="stat-card">
+                    <h6>🚨 Motion Alerts</h6>
+                    <div class="h4 text-warning" id="motionAlerts">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        class WirelessCamera {
+            constructor() {
+                this.deviceId = this.generateDeviceId();
+                this.socket = null;
+                this.stream = null;
+                this.isStreaming = false;
+                this.framesSent = 0;
+                this.connectionStartTime = null;
+                this.sendInterval = null;
+                
+                this.initializeUI();
+                this.connectToServer();
+            }
+            
+            generateDeviceId() {
+                return 'camera_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
+            }
+            
+            initializeUI() {
+                document.getElementById('deviceId').textContent = this.deviceId;
+                  document.getElementById('startButton').addEventListener('click', () => {
+                    // Check HTTPS before attempting camera access
+                    if (!checkHTTPS()) {
+                        return;
+                    }
+                    this.startCamera();
+                });
+                
+                document.getElementById('stopButton').addEventListener('click', () => {
+                    this.stopCamera();
+                });
+            }
+            
+            connectToServer() {
+                this.socket = io();
+                
+                this.socket.on('connect', () => {
+                    console.log('Connected to server');
+                    this.updateConnectionStatus('connected');
+                    
+                    // Register device
+                    this.socket.emit('register_device', {
+                        device_id: this.deviceId,
+                        device_type: 'wireless_camera',
+                        user_agent: navigator.userAgent,
+                        screen: {
+                            width: screen.width,
+                            height: screen.height
+                        }
+                    });
+                });
+                
+                this.socket.on('disconnect', () => {
+                    console.log('Disconnected from server');
+                    this.updateConnectionStatus('disconnected');
+                    this.stopCamera();
+                });
+                  this.socket.on('server_stats', (data) => {
+                    this.updateServerStats(data);
+                });
+                
+                this.socket.on('motion_alert', (data) => {
+                    this.handleMotionAlert(data);
+                });
+                
+                this.socket.on('stream_response', (data) => {
+                    console.log('Stream response:', data);
+                    if (!data.success) {
+                        console.error('Failed to start stream:', data.message);
+                        this.showError('Failed to start camera stream: ' + data.message);
+                    }
+                });
+                
+                this.updateConnectionStatus('connecting');
+            }
+              async startCamera() {
+                try {
+                    // Hide any previous error alerts
+                    document.getElementById('errorAlert').style.display = 'none';
+                    
+                    // Check if browser supports getUserMedia
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error('Camera API not supported in this browser');
+                    }
+                    
+                    // First check camera permissions
+                    const permissionStatus = await this.checkCameraPermission();
+                    if (permissionStatus === 'denied') {
+                        this.showPermissionModal('Camera access has been denied. Please grant permission to use this feature.');
+                        return;
+                    }
+                    
+                    // Request camera access with enhanced error handling
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640, max: 1280 },
+                            height: { ideal: 480, max: 720 },
+                            frameRate: { ideal: 15, max: 30 }
+                        },
+                        audio: false
+                    });
+                    
+                    const videoElement = document.getElementById('videoElement');
+                    videoElement.srcObject = this.stream;
+                    
+                    // Wait for video to be ready
+                    await new Promise((resolve) => {
+                        videoElement.onloadedmetadata = resolve;
+                    });
+                    
+                    // Update camera resolution
+                    const track = this.stream.getVideoTracks()[0];
+                    const settings = track.getSettings();
+                    document.getElementById('cameraResolution').textContent = 
+                        `${settings.width}x${settings.height}`;
+                    
+                    this.isStreaming = true;
+                    this.connectionStartTime = Date.now();
+                    this.framesSent = 0;
+                      document.getElementById('startButton').disabled = true;
+                    document.getElementById('stopButton').disabled = false;
+                    
+                    // Notify server to start stream
+                    this.socket.emit('start_stream', {
+                        device_id: this.deviceId
+                    });
+                    
+                    // Start sending frames
+                    this.startFrameCapture();
+                    
+                    console.log('Camera started successfully');
+                    
+                } catch (error) {
+                    console.error('Error starting camera:', error);
+                    this.handleCameraError(error);
+                }
+            }
+            
+            async checkCameraPermission() {
+                try {
+                    if (navigator.permissions) {
+                        const permission = await navigator.permissions.query({ name: 'camera' });
+                        return permission.state; // 'granted', 'denied', or 'prompt'
+                    }
+                    return 'unknown';
+                } catch (error) {
+                    console.warn('Cannot check camera permission:', error);
+                    return 'unknown';
+                }
+            }
+            
+            handleCameraError(error) {
+                let errorMessage = '';
+                let showModal = false;
+                
+                switch (error.name) {
+                    case 'NotAllowedError':
+                        errorMessage = 'Camera access was denied. Please grant permission and try again.';
+                        showModal = true;
+                        break;
+                    case 'NotFoundError':
+                        errorMessage = 'No camera found on this device. Please connect a camera and try again.';
+                        break;
+                    case 'NotReadableError':
+                        errorMessage = 'Camera is already in use by another application. Please close other camera apps and try again.';
+                        break;
+                    case 'OverconstrainedError':
+                        errorMessage = 'Camera does not support the requested settings. Trying with basic settings...';
+                        this.tryBasicCamera();
+                        return;
+                    case 'SecurityError':
+                        errorMessage = 'Camera access blocked due to security settings. Please check your browser security settings.';
+                        showModal = true;
+                        break;
+                    default:
+                        errorMessage = `Camera error: ${error.message || 'Unknown error occurred'}`;
+                        showModal = true;
+                        break;
+                }
+                
+                this.showError(errorMessage);
+                if (showModal) {
+                    this.showPermissionModal(errorMessage);
+                }
+            }
+            
+            async tryBasicCamera() {
+                try {
+                    console.log('Trying basic camera settings...');
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: false
+                    });
+                    
+                    const videoElement = document.getElementById('videoElement');
+                    videoElement.srcObject = this.stream;
+                    
+                    this.isStreaming = true;
+                    this.connectionStartTime = Date.now();
+                    this.framesSent = 0;
+                      document.getElementById('startButton').disabled = true;
+                    document.getElementById('stopButton').disabled = false;
+                    
+                    // Notify server to start stream
+                    this.socket.emit('start_stream', {
+                        device_id: this.deviceId
+                    });
+                    
+                    this.startFrameCapture();
+                    
+                    console.log('Basic camera started successfully');
+                    
+                } catch (error) {
+                    console.error('Basic camera also failed:', error);
+                    this.handleCameraError(error);
+                }
+            }
+            
+            showError(message) {
+                const errorAlert = document.getElementById('errorAlert');
+                const errorMessage = document.getElementById('errorMessage');
+                errorMessage.textContent = message;
+                errorAlert.style.display = 'block';
+            }
+            
+            showPermissionModal(message) {
+                const modal = document.getElementById('permissionModal');
+                modal.style.display = 'flex';
+                
+                // Update message if provided
+                if (message) {
+                    const content = modal.querySelector('.permission-content p');
+                    content.textContent = message;
+                }
+            }
+            
+            stopCamera() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+                
+                if (this.sendInterval) {
+                    clearInterval(this.sendInterval);
+                    this.sendInterval = null;
+                }
+                
+                this.isStreaming = false;
+                this.connectionStartTime = null;
+                
+                document.getElementById('startButton').disabled = false;
+                document.getElementById('stopButton').disabled = true;
+                
+                const videoElement = document.getElementById('videoElement');
+                videoElement.srcObject = null;
+                
+                // Notify server
+                if (this.socket) {
+                    this.socket.emit('stop_stream', { device_id: this.deviceId });
+                }
+                
+                console.log('Camera stopped');
+            }
+            
+            startFrameCapture() {
+                const videoElement = document.getElementById('videoElement');
+                const canvas = document.getElementById('canvasElement');
+                const ctx = canvas.getContext('2d');
+                
+                this.sendInterval = setInterval(() => {
+                    if (!this.isStreaming || !videoElement.videoWidth) return;
+                    
+                    // Set canvas size to match video
+                    canvas.width = videoElement.videoWidth;
+                    canvas.height = videoElement.videoHeight;
+                    
+                    // Draw current frame to canvas
+                    ctx.drawImage(videoElement, 0, 0);
+                    
+                    // Convert to base64 JPEG
+                    const imageData = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    // Send frame to server
+                    this.socket.emit('camera_frame', {
+                        device_id: this.deviceId,
+                        frame_data: imageData,
+                        timestamp: Date.now()
+                    });
+                    
+                    this.framesSent++;
+                    document.getElementById('framesSent').textContent = this.framesSent;
+                    
+                }, 200); // Send frame every 200ms (5 FPS)
+                
+                // Update connection time every second
+                setInterval(() => {
+                    if (this.connectionStartTime) {
+                        const elapsed = Date.now() - this.connectionStartTime;
+                        document.getElementById('connectionTime').textContent = 
+                            this.formatTime(elapsed);
+                    }
+                }, 1000);
+            }
+            
+            updateConnectionStatus(status) {
+                const indicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('connectionStatus');
+                
+                indicator.className = 'status-indicator';
+                
+                switch (status) {
+                    case 'connecting':
+                        indicator.classList.add('status-connecting');
+                        statusText.textContent = 'Connecting...';
+                        break;
+                    case 'connected':
+                        indicator.classList.add('status-connected');
+                        statusText.textContent = 'Connected';
+                        break;
+                    case 'disconnected':
+                        indicator.classList.add('status-disconnected');
+                        statusText.textContent = 'Disconnected';
+                        break;
+                }
+            }
+            
+            updateServerStats(stats) {
+                document.getElementById('activeDevices').textContent = stats.active_devices || 0;
+                document.getElementById('motionAlerts').textContent = stats.motion_alerts || 0;
+            }
+            
+            handleMotionAlert(data) {
+                // Show brief visual indication of motion detection
+                document.body.style.background = '#ffebee';
+                setTimeout(() => {
+                    document.body.style.background = '';
+                }, 500);
+                
+                console.log('Motion detected:', data);
+            }
+              formatTime(milliseconds) {
+                const seconds = Math.floor(milliseconds / 1000);
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = seconds % 60;
+                
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        // Global functions for permission modal
+        function retryCamera() {
+            const camera = window.wirelessCamera;
+            if (camera) {
+                closePermissionModal();
+                camera.startCamera();
+            }
+        }
+        
+        function showBrowserInstructions() {
+            // Hide all browser instructions first
+            document.querySelectorAll('.browser-instructions').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Detect browser and show appropriate instructions
+            const userAgent = navigator.userAgent;
+            if (userAgent.includes('Chrome')) {
+                document.getElementById('chromeInstructions').style.display = 'block';
+            } else if (userAgent.includes('Firefox')) {
+                document.getElementById('firefoxInstructions').style.display = 'block';
+            } else if (userAgent.includes('Safari')) {
+                document.getElementById('safariInstructions').style.display = 'block';
+            } else {
+                // Show Chrome instructions as default
+                document.getElementById('chromeInstructions').style.display = 'block';
+            }
+        }
+        
+        function closePermissionModal() {
+            document.getElementById('permissionModal').style.display = 'none';
+        }
+        
+        function showTroubleshooting() {
+            const camera = window.wirelessCamera;
+            if (camera) {
+                camera.showPermissionModal('Camera access troubleshooting steps:');
+            }
+        }
+          // Check if page is loaded over HTTPS (required for camera access)
+        function checkHTTPS() {
+            // For localhost, HTTPS is not required
+            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                return true;
+            }
+            
+            if (location.protocol !== 'https:') {
+                const errorAlert = document.getElementById('errorAlert');
+                const errorMessage = document.getElementById('errorMessage');
+                errorMessage.innerHTML = '<strong>⚠️ HTTPS Required:</strong> Camera access requires a secure connection (HTTPS) for remote access. You are currently accessing localhost which allows camera access over HTTP.';
+                errorAlert.style.display = 'block';
+                return false;
+            }
+            return true;
+        }
+          // Initialize wireless camera when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check HTTPS requirement first
+            if (!checkHTTPS()) {
+                return;
+            }
+            
+            // Create and store camera instance globally for modal functions
+            window.wirelessCamera = new WirelessCamera();
+        });
+    </script>
+</body>
+</html>

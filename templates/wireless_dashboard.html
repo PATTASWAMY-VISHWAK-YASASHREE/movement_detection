@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless Camera Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .device-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            transition: transform 0.2s;
+        }
+        
+        .device-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .device-online {
+            border-left: 4px solid #28a745;
+        }
+        
+        .device-offline {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .frame-preview {
+            width: 100%;
+            height: 200px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            margin-bottom: 1rem;
+        }
+        
+        .frame-image {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 4px;
+        }
+        
+        .stats-overview {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .motion-alert {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .control-panel {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .qr-code {
+            text-align: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="display-4 mb-0">🌐 Wireless Camera Dashboard</h1>
+                    <p class="lead mb-0">Monitor all connected wireless cameras</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="h4 mb-0">Server: localhost:{{ server_port }}</div>
+                    <div class="text-light">Motion Detection: <span id="motionStatus">Active</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Statistics Overview -->
+        <div class="stats-overview">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number text-primary" id="totalDevices">0</div>
+                        <div>Total Devices</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number text-success" id="activeStreams">0</div>
+                        <div>Active Streams</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number text-info" id="framesProcessed">0</div>
+                        <div>Frames Processed</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number text-warning" id="motionAlerts">0</div>
+                        <div>Motion Alerts</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <h5>🎛️ Control Panel</h5>
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="motionDetectionToggle" checked>
+                        <label class="form-check-label" for="motionDetectionToggle">
+                            Motion Detection Enabled
+                        </label>
+                    </div>
+                </div>                <div class="col-md-6 text-end">
+                    <button class="btn btn-outline-primary me-2" id="refreshDevices">
+                        🔄 Refresh Devices
+                    </button>
+                    <a href="/test" class="btn btn-outline-info me-2">
+                        🔧 Test Camera
+                    </a>
+                    <button class="btn btn-outline-success" id="exportData">
+                        📊 Export Data
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- QR Code for Easy Device Connection -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="qr-code">
+                    <h6>📱 Connect New Device</h6>
+                    <div id="qrcode"></div>
+                    <small class="text-muted">Scan QR code or visit:<br>
+                    <strong>http://{{ server_ip }}:{{ server_port }}/camera</strong></small>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <!-- Recent Motion Alerts -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">🚨 Recent Motion Alerts</h6>
+                    </div>
+                    <div class="card-body" style="max-height: 200px; overflow-y: auto;" id="motionAlertsContainer">
+                        <div class="text-muted text-center">No recent alerts</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Connected Devices -->
+        <h5 class="mb-3">📱 Connected Devices (<span id="deviceCount">0</span>)</h5>
+        <div class="device-grid" id="devicesContainer">
+            <!-- Devices will be populated here -->
+        </div>
+        
+        <!-- No Devices Message -->
+        <div id="noDevicesMessage" class="text-center py-5" style="display: none;">
+            <div class="h1 text-muted">📱</div>
+            <h4 class="text-muted">No Devices Connected</h4>
+            <p class="text-muted">Connect devices by visiting the camera URL or scanning the QR code above.</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        class WirelessCameraDashboard {
+            constructor() {
+                this.socket = null;
+                this.devices = {};
+                this.motionAlerts = [];
+                
+                this.initializeUI();
+                this.connectToServer();
+                this.generateQRCode();
+            }
+            
+            initializeUI() {
+                // Motion detection toggle
+                document.getElementById('motionDetectionToggle').addEventListener('change', (e) => {
+                    this.toggleMotionDetection(e.target.checked);
+                });
+                
+                // Refresh devices button
+                document.getElementById('refreshDevices').addEventListener('click', () => {
+                    this.refreshDevices();
+                });
+                
+                // Export data button
+                document.getElementById('exportData').addEventListener('click', () => {
+                    this.exportData();
+                });
+            }            generateQRCode() {
+                const url = `http://{{ server_ip }}:{{ server_port }}/camera`;
+                
+                // Create a canvas element for the QR code
+                const canvas = document.createElement('canvas');
+                const qrContainer = document.getElementById('qrcode');
+                qrContainer.innerHTML = ''; // Clear existing content
+                qrContainer.appendChild(canvas);
+                
+                QRCode.toCanvas(canvas, url, {
+                    width: 120,
+                    height: 120,
+                    margin: 1,
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    }
+                }, (error) => {
+                    if (error) {
+                        console.error('QR Code generation failed:', error);
+                        qrContainer.innerHTML = '<div class="text-danger">QR code failed to load</div>';
+                    } else {
+                        console.log('QR Code generated successfully');
+                    }
+                });
+            }
+            
+            connectToServer() {
+                this.socket = io();
+                
+                this.socket.on('connect', () => {
+                    console.log('Connected to dashboard server');
+                    this.socket.emit('join_dashboard');
+                });
+                
+                this.socket.on('disconnect', () => {
+                    console.log('Disconnected from dashboard server');
+                });
+                
+                this.socket.on('device_update', (data) => {
+                    this.updateDevice(data);
+                });
+                
+                this.socket.on('device_disconnected', (data) => {
+                    this.removeDevice(data.device_id);
+                });
+                
+                this.socket.on('server_stats', (data) => {
+                    this.updateStats(data);
+                });
+                
+                this.socket.on('motion_alert', (data) => {
+                    this.addMotionAlert(data);
+                });
+                
+                this.socket.on('frame_update', (data) => {
+                    this.updateDeviceFrame(data);
+                });
+            }
+            
+            updateDevice(deviceData) {
+                this.devices[deviceData.device_id] = deviceData;
+                this.renderDevices();
+            }
+            
+            removeDevice(deviceId) {
+                delete this.devices[deviceId];
+                this.renderDevices();
+            }
+            
+            updateStats(stats) {
+                document.getElementById('totalDevices').textContent = stats.total_devices || 0;
+                document.getElementById('activeStreams').textContent = stats.active_streams || 0;
+                document.getElementById('framesProcessed').textContent = stats.frames_processed || 0;
+                document.getElementById('motionAlerts').textContent = stats.motion_alerts || 0;
+            }
+            
+            addMotionAlert(alertData) {
+                this.motionAlerts.unshift(alertData);
+                if (this.motionAlerts.length > 10) {
+                    this.motionAlerts = this.motionAlerts.slice(0, 10);
+                }
+                this.renderMotionAlerts();
+            }
+            
+            updateDeviceFrame(frameData) {
+                const device = this.devices[frameData.device_id];
+                if (device) {
+                    device.last_frame = frameData.frame_data;
+                    device.last_frame_time = frameData.timestamp;
+                    this.renderDevices();
+                }
+            }
+            
+            renderDevices() {
+                const container = document.getElementById('devicesContainer');
+                const noDevicesMessage = document.getElementById('noDevicesMessage');
+                const deviceCount = document.getElementById('deviceCount');
+                
+                const deviceIds = Object.keys(this.devices);
+                deviceCount.textContent = deviceIds.length;
+                
+                if (deviceIds.length === 0) {
+                    container.innerHTML = '';
+                    noDevicesMessage.style.display = 'block';
+                    return;
+                }
+                
+                noDevicesMessage.style.display = 'none';
+                
+                container.innerHTML = deviceIds.map(deviceId => {
+                    const device = this.devices[deviceId];
+                    const isOnline = device.status === 'connected';
+                    const lastSeen = device.last_frame_time ? 
+                        new Date(device.last_frame_time).toLocaleTimeString() : 'Never';
+                    
+                    return `
+                        <div class="device-card ${isOnline ? 'device-online' : 'device-offline'}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">📱 ${device.device_id}</h6>
+                                    <span class="badge ${isOnline ? 'bg-success' : 'bg-secondary'} status-badge">
+                                        ${isOnline ? 'Online' : 'Offline'}
+                                    </span>
+                                </div>
+                                
+                                <div class="frame-preview">
+                                    ${device.last_frame ? 
+                                        `<img src="${device.last_frame}" class="frame-image" alt="Camera feed">` :
+                                        '<div>📹 No frame received</div>'
+                                    }
+                                </div>
+                                
+                                <div class="small text-muted">
+                                    <div><strong>Type:</strong> ${device.device_type || 'Unknown'}</div>
+                                    <div><strong>Connected:</strong> ${device.connected_at ? 
+                                        new Date(device.connected_at).toLocaleString() : 'Unknown'}</div>
+                                    <div><strong>Last Frame:</strong> ${lastSeen}</div>
+                                    <div><strong>Frames:</strong> ${device.frame_count || 0}</div>
+                                </div>
+                                
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="dashboard.viewDevice('${deviceId}')">
+                                        👁️ View
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="dashboard.disconnectDevice('${deviceId}')">
+                                        ❌ Disconnect
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            renderMotionAlerts() {
+                const container = document.getElementById('motionAlertsContainer');
+                
+                if (this.motionAlerts.length === 0) {
+                    container.innerHTML = '<div class="text-muted text-center">No recent alerts</div>';
+                    return;
+                }
+                
+                container.innerHTML = this.motionAlerts.map(alert => `
+                    <div class="motion-alert">
+                        <strong>🚨 Motion detected</strong> on device <code>${alert.device_id}</code>
+                        <div class="text-muted small">
+                            ${new Date(alert.timestamp).toLocaleString()}
+                            ${alert.confidence ? `• Confidence: ${(alert.confidence * 100).toFixed(1)}%` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            toggleMotionDetection(enabled) {
+                this.socket.emit('toggle_motion_detection', { enabled });
+                document.getElementById('motionStatus').textContent = enabled ? 'Active' : 'Inactive';
+            }
+            
+            refreshDevices() {
+                this.socket.emit('refresh_devices');
+            }
+            
+            exportData() {
+                this.socket.emit('export_data');
+            }
+            
+            viewDevice(deviceId) {
+                // Open device-specific view (could be implemented later)
+                alert(`Viewing device: ${deviceId}`);
+            }
+            
+            disconnectDevice(deviceId) {
+                if (confirm(`Disconnect device ${deviceId}?`)) {
+                    this.socket.emit('disconnect_device', { device_id: deviceId });
+                }
+            }
+        }
+        
+        // Initialize dashboard when page loads
+        let dashboard;
+        document.addEventListener('DOMContentLoaded', () => {
+            dashboard = new WirelessCameraDashboard();
+        });
+    </script>
+</body>
+</html>

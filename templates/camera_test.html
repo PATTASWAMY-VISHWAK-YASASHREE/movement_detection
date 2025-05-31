@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Test & Troubleshooting</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 2rem auto;
+        }
+        
+        #testVideo {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #f0f0f0;
+        }
+        
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 0.5rem;
+        }
+        
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .status-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .test-step {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .device-info {
+            background: #e3f2fd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .troubleshooting {
+            background: #fff3e0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .browser-specific {
+            display: none;
+            background: #f3e5f5;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="test-container">
+            <div class="text-center mb-4">
+                <h1 class="display-4">🔧 Camera Test & Troubleshooting</h1>
+                <p class="lead">Test your camera and diagnose permission issues</p>
+            </div>
+            
+            <!-- Test Status -->
+            <div class="text-center mb-4">
+                <h5>Camera Status:</h5>
+                <div id="statusBadges">
+                    <span class="status-badge status-warning" id="statusBadge">Not Tested</span>
+                </div>
+            </div>
+            
+            <!-- Video Element -->
+            <div class="text-center mb-4">
+                <video id="testVideo" autoplay muted playsinline></video>
+                <div class="mt-3">
+                    <button id="testButton" class="btn btn-primary btn-lg me-2">
+                        📹 Test Camera Access
+                    </button>
+                    <button id="stopButton" class="btn btn-secondary btn-lg" disabled>
+                        🛑 Stop Test
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Device Information -->
+            <div class="device-info" id="deviceInfo" style="display: none;">
+                <h6>📱 Device Information</h6>
+                <div id="deviceDetails"></div>
+            </div>
+            
+            <!-- Test Steps -->
+            <div class="test-step">
+                <h6>✅ What This Test Does:</h6>
+                <ul>
+                    <li>Checks if your browser supports camera access</li>
+                    <li>Tests camera permission status</li>
+                    <li>Detects available cameras and their capabilities</li>
+                    <li>Verifies video stream functionality</li>
+                    <li>Provides browser-specific troubleshooting steps</li>
+                </ul>
+            </div>
+            
+            <!-- Error Display -->
+            <div class="alert alert-danger" id="errorAlert" style="display: none;">
+                <h6>❌ Camera Test Failed</h6>
+                <div id="errorDetails"></div>
+            </div>
+            
+            <!-- Troubleshooting Guide -->
+            <div class="troubleshooting">
+                <h5>🔧 Common Issues & Solutions</h5>
+                
+                <div class="accordion" id="troubleshootingAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#permission-denied">
+                                🚫 Permission Denied Error
+                            </button>
+                        </h2>
+                        <div id="permission-denied" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                            <div class="accordion-body">
+                                <strong>Solution:</strong>
+                                <ol>
+                                    <li>Look for a camera icon in your browser's address bar</li>
+                                    <li>Click the icon and select "Allow" for camera access</li>
+                                    <li>Refresh the page and try again</li>
+                                    <li>If no icon appears, check browser settings for camera permissions</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#camera-not-found">
+                                📷 No Camera Found
+                            </button>
+                        </h2>
+                        <div id="camera-not-found" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                            <div class="accordion-body">
+                                <strong>Solution:</strong>
+                                <ol>
+                                    <li>Check if your device has a built-in camera</li>
+                                    <li>Ensure external cameras are properly connected</li>
+                                    <li>Close other applications that might be using the camera</li>
+                                    <li>Try refreshing the page</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#https-required">
+                                🔒 HTTPS Required
+                            </button>
+                        </h2>
+                        <div id="https-required" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                            <div class="accordion-body">
+                                <strong>Solution:</strong>
+                                <p>Camera access requires a secure connection (HTTPS) for security reasons.</p>
+                                <ol>
+                                    <li>Access the page via HTTPS instead of HTTP</li>
+                                    <li>Use localhost or 127.0.0.1 for local testing</li>
+                                    <li>Contact the system administrator for HTTPS setup</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Browser-Specific Instructions -->
+            <div class="browser-specific" id="chromeInstructions">
+                <h6>🌐 Chrome-Specific Instructions:</h6>
+                <ol>
+                    <li>Type <code>chrome://settings/content/camera</code> in the address bar</li>
+                    <li>Ensure "Ask before accessing" is enabled</li>
+                    <li>Check if this site is in the "Block" list and remove it</li>
+                    <li>Add this site to the "Allow" list if needed</li>
+                </ol>
+            </div>
+            
+            <div class="browser-specific" id="firefoxInstructions">
+                <h6>🦊 Firefox-Specific Instructions:</h6>
+                <ol>
+                    <li>Type <code>about:preferences#privacy</code> in the address bar</li>
+                    <li>Scroll to "Permissions" section</li>
+                    <li>Click "Settings" next to Camera</li>
+                    <li>Find this website and change permission to "Allow"</li>
+                </ol>
+            </div>
+            
+            <div class="browser-specific" id="safariInstructions">
+                <h6>🧭 Safari-Specific Instructions:</h6>
+                <ol>
+                    <li>Go to Safari → Preferences → Websites</li>
+                    <li>Click "Camera" in the left sidebar</li>
+                    <li>Find this website and change permission to "Allow"</li>
+                    <li>Refresh the page</li>
+                </ol>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="text-center mt-4">
+                <button class="btn btn-info me-2" onclick="showBrowserHelp()">
+                    📖 Show Browser-Specific Help
+                </button>
+                <button class="btn btn-success me-2" onclick="window.location.href='/camera'">
+                    ✅ Camera Works - Go to Security Camera
+                </button>
+                <button class="btn btn-outline-secondary" onclick="window.location.href='/dashboard'">
+                    🏠 Back to Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        class CameraTest {
+            constructor() {
+                this.stream = null;
+                this.isTestRunning = false;
+                this.deviceInfo = {};
+                
+                this.initializeUI();
+                this.checkHTTPS();
+                this.detectBrowser();
+            }
+            
+            initializeUI() {
+                document.getElementById('testButton').addEventListener('click', () => {
+                    this.startTest();
+                });
+                
+                document.getElementById('stopButton').addEventListener('click', () => {
+                    this.stopTest();
+                });
+            }
+            
+            checkHTTPS() {
+                const isSecure = location.protocol === 'https:' || 
+                               location.hostname === 'localhost' || 
+                               location.hostname === '127.0.0.1';
+                
+                if (!isSecure) {
+                    this.showError('HTTPS Required', 
+                        'Camera access requires a secure connection (HTTPS) or localhost access.');
+                    document.getElementById('testButton').disabled = true;
+                }
+            }
+            
+            detectBrowser() {
+                const userAgent = navigator.userAgent;
+                this.deviceInfo.browser = 'Unknown';
+                
+                if (userAgent.includes('Chrome')) {
+                    this.deviceInfo.browser = 'Chrome';
+                } else if (userAgent.includes('Firefox')) {
+                    this.deviceInfo.browser = 'Firefox';
+                } else if (userAgent.includes('Safari')) {
+                    this.deviceInfo.browser = 'Safari';
+                } else if (userAgent.includes('Edge')) {
+                    this.deviceInfo.browser = 'Edge';
+                }
+            }
+            
+            async startTest() {
+                try {
+                    this.updateStatus('Testing...', 'warning');
+                    this.clearError();
+                    
+                    // Check browser support
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error('Camera API not supported in this browser');
+                    }
+                    
+                    // Check permission status if available
+                    if (navigator.permissions) {
+                        try {
+                            const permission = await navigator.permissions.query({ name: 'camera' });
+                            this.deviceInfo.permissionState = permission.state;
+                        } catch (e) {
+                            this.deviceInfo.permissionState = 'unknown';
+                        }
+                    }
+                    
+                    // Get available cameras
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const cameras = devices.filter(device => device.kind === 'videoinput');
+                    this.deviceInfo.cameras = cameras;
+                    
+                    if (cameras.length === 0) {
+                        throw new Error('No camera devices found on this device');
+                    }
+                    
+                    // Request camera access
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        },
+                        audio: false
+                    });
+                    
+                    // Display video stream
+                    const videoElement = document.getElementById('testVideo');
+                    videoElement.srcObject = this.stream;
+                    
+                    // Get camera capabilities
+                    const track = this.stream.getVideoTracks()[0];
+                    const capabilities = track.getCapabilities();
+                    const settings = track.getSettings();
+                    
+                    this.deviceInfo.capabilities = capabilities;
+                    this.deviceInfo.currentSettings = settings;
+                    
+                    this.isTestRunning = true;
+                    this.updateStatus('Camera Working!', 'success');
+                    this.displayDeviceInfo();
+                    
+                    document.getElementById('testButton').disabled = true;
+                    document.getElementById('stopButton').disabled = false;
+                    
+                } catch (error) {
+                    console.error('Camera test failed:', error);
+                    this.handleTestError(error);
+                }
+            }
+            
+            stopTest() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+                
+                const videoElement = document.getElementById('testVideo');
+                videoElement.srcObject = null;
+                
+                this.isTestRunning = false;
+                this.updateStatus('Test Stopped', 'warning');
+                
+                document.getElementById('testButton').disabled = false;
+                document.getElementById('stopButton').disabled = true;
+            }
+            
+            handleTestError(error) {
+                let errorMessage = '';
+                let suggestions = [];
+                
+                switch (error.name) {
+                    case 'NotAllowedError':
+                        errorMessage = 'Camera access was denied by the user or browser settings.';
+                        suggestions = [
+                            'Click the camera icon in your browser\'s address bar and select "Allow"',
+                            'Check browser settings for camera permissions',
+                            'Clear site data and try again'
+                        ];
+                        break;
+                        
+                    case 'NotFoundError':
+                        errorMessage = 'No camera was found on this device.';
+                        suggestions = [
+                            'Check if your device has a built-in camera',
+                            'Ensure external cameras are properly connected',
+                            'Try refreshing the page'
+                        ];
+                        break;
+                        
+                    case 'NotReadableError':
+                        errorMessage = 'Camera is already in use by another application.';
+                        suggestions = [
+                            'Close other applications that might be using the camera',
+                            'Restart your browser',
+                            'Check if video calling apps are running'
+                        ];
+                        break;
+                        
+                    case 'OverconstrainedError':
+                        errorMessage = 'Camera does not support the requested settings.';
+                        suggestions = [
+                            'Try with a different camera if available',
+                            'The camera resolution may not be supported'
+                        ];
+                        break;
+                        
+                    case 'SecurityError':
+                        errorMessage = 'Camera access is blocked due to security restrictions.';
+                        suggestions = [
+                            'Access the page via HTTPS',
+                            'Check if the page is loaded in a secure context'
+                        ];
+                        break;
+                        
+                    default:
+                        errorMessage = error.message || 'Unknown camera error occurred.';
+                        suggestions = [
+                            'Try refreshing the page',
+                            'Check browser console for more details',
+                            'Try a different browser'
+                        ];
+                        break;
+                }
+                
+                this.showError(error.name || 'Camera Error', errorMessage, suggestions);
+                this.updateStatus('Test Failed', 'danger');
+            }
+            
+            showError(title, message, suggestions = []) {
+                const errorAlert = document.getElementById('errorAlert');
+                const errorDetails = document.getElementById('errorDetails');
+                
+                let html = `<strong>${title}:</strong> ${message}`;
+                
+                if (suggestions.length > 0) {
+                    html += '<br><br><strong>Suggestions:</strong><ul>';
+                    suggestions.forEach(suggestion => {
+                        html += `<li>${suggestion}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                
+                errorDetails.innerHTML = html;
+                errorAlert.style.display = 'block';
+            }
+            
+            clearError() {
+                document.getElementById('errorAlert').style.display = 'none';
+            }
+            
+            updateStatus(text, type) {
+                const badge = document.getElementById('statusBadge');
+                badge.textContent = text;
+                badge.className = `status-badge status-${type}`;
+            }
+            
+            displayDeviceInfo() {
+                const deviceInfo = document.getElementById('deviceInfo');
+                const deviceDetails = document.getElementById('deviceDetails');
+                
+                let html = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Browser:</strong> ${this.deviceInfo.browser}<br>
+                            <strong>Permission:</strong> ${this.deviceInfo.permissionState || 'unknown'}<br>
+                            <strong>Cameras Found:</strong> ${this.deviceInfo.cameras?.length || 0}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Resolution:</strong> ${this.deviceInfo.currentSettings?.width || 'unknown'}x${this.deviceInfo.currentSettings?.height || 'unknown'}<br>
+                            <strong>Frame Rate:</strong> ${this.deviceInfo.currentSettings?.frameRate || 'unknown'} FPS<br>
+                            <strong>Device ID:</strong> ${this.deviceInfo.currentSettings?.deviceId?.substring(0, 20) || 'unknown'}...
+                        </div>
+                    </div>
+                `;
+                
+                deviceDetails.innerHTML = html;
+                deviceInfo.style.display = 'block';
+            }
+        }
+        
+        // Global functions
+        function showBrowserHelp() {
+            // Hide all browser instructions
+            document.querySelectorAll('.browser-specific').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Show appropriate instructions
+            const userAgent = navigator.userAgent;
+            if (userAgent.includes('Chrome')) {
+                document.getElementById('chromeInstructions').style.display = 'block';
+            } else if (userAgent.includes('Firefox')) {
+                document.getElementById('firefoxInstructions').style.display = 'block';
+            } else if (userAgent.includes('Safari')) {
+                document.getElementById('safariInstructions').style.display = 'block';
+            } else {
+                // Default to Chrome instructions
+                document.getElementById('chromeInstructions').style.display = 'block';
+            }
+        }
+        
+        // Initialize camera test when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new CameraTest();
+        });
+    </script>
+</body>
+</html>
