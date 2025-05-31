@@ -16,12 +16,32 @@ A real-time motion detection security system that uses your laptop camera to mon
 
 ## Installation
 
-1. Install Python dependencies:
+### Easy Installation (Recommended)
+
+#### Windows:
+1. Double-click `install_windows.bat`
+2. Follow the on-screen instructions
+
+#### Linux/macOS:
+1. Open terminal in the project directory
+2. Run: `chmod +x install_linux_mac.sh`
+3. Run: `./install_linux_mac.sh`
+4. Follow the on-screen instructions
+
+### Manual Installation
+
+1. Ensure Python 3.7+ is installed
+2. Install Python dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Run the security system:
+3. Verify installation:
+```bash
+python verify_dependencies.py
+```
+
+4. Run the security system:
 ```bash
 python start_system.py --all
 ```
