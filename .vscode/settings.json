@@ -4,6 +4,7 @@
     },
     "cSpell.words": [
         "appcontext",
+        "autoplay",
         "frombuffer",
         "ILIKE",
         "imdecode",
@@ -12,8 +13,15 @@
         "IMWRITE",
         "jsonify",
         "LANCZOS",
+        "minmax",
         "ndarray",
         "nparr",
+        "onclick",
+        "onloadedmetadata",
+        "orientationchange",
+        "Overconstrained",
+        "playsinline",
+        "rgba",
         "subtractor",
         "unregistration"
     ]

@@ -11,3 +11,4 @@ psycopg2-binary==2.9.7
 flask==2.3.3
 flask-socketio==5.3.4
 requests==2.31.0
+qrcode==7.4.2

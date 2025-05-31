@@ -31,7 +31,7 @@ import cv2
 import numpy as np
 import qrcode
 from io import BytesIO
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, send_file
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import psycopg2
 from database_config import get_psycopg2_params, TABLES
@@ -358,6 +358,60 @@ def api_toggle_motion():
         'motion_detection': camera_server.motion_detection_enabled,
         'message': f"Motion detection {'enabled' if camera_server.motion_detection_enabled else 'disabled'}"
     })
+
+@app.route('/qrcode')
+def generate_qrcode():
+    """Generate QR code for easy mobile connection"""
+    server_ip = request.args.get('ip', 'localhost')
+    server_port = request.args.get('port', '3000')
+    
+    # Create URL for camera interface
+    url = f"http://{server_ip}:{server_port}/camera"
+    
+    # Generate QR code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Save QR code to bytes
+    img_io = BytesIO()
+    img.save(img_io, 'PNG')
+    img_io.seek(0)
+    
+    return send_file(img_io, mimetype='image/png')
+    
+@app.route('/viewer-with-qr')
+def viewer_with_qr():
+    """Show dashboard with QR code for connecting devices"""
+    # Get local IP
+    def get_local_ip():
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "localhost"
+            
+    server_ip = get_local_ip()
+    server_port = camera_server.port
+    
+    qr_code_url = f"/qrcode?ip={server_ip}&port={server_port}"
+    
+    return render_template(
+        'wireless_dashboard.html',
+        server_ip=server_ip,
+        server_port=server_port,
+        qr_code_url=qr_code_url
+    )
 
 # SocketIO Events
 @socketio.on('connect')

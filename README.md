@@ -10,6 +10,9 @@ A real-time motion detection security system that uses your laptop camera to mon
 - **Sensitivity Controls**: Adjustable motion detection sensitivity
 - **Multiple Alert Types**: Desktop notifications, sound alerts, and visual warnings
 - **Security Dashboard**: Live camera feed with motion indicators
+- **Wireless Camera Support**: Connect mobile phones as additional cameras
+- **Network Access**: Monitor your security system from any device on the network
+- **QR Code Connection**: Easily connect mobile devices using QR codes
 
 ## Installation
 
@@ -20,8 +23,22 @@ pip install -r requirements.txt
 
 2. Run the security system:
 ```bash
-python motion_detector.py
+python start_system.py --all
 ```
+
+## Network Access & Mobile Devices
+
+You can access the security system from any device on your local network:
+
+1. **Web Dashboard**: Access at `http://<your-ip-address>:5000`
+2. **Mobile Camera Connection**: Connect your phone's camera at `http://<your-ip-address>:3000/camera`
+3. **Wireless Camera Dashboard**: View all connected cameras at `http://<your-ip-address>:3000/viewer-with-qr`
+
+To connect mobile devices:
+- Ensure all devices are on the same WiFi network
+- Scan the QR code from the wireless camera dashboard
+- Grant camera permissions when prompted
+- Keep the browser tab open to continue streaming
 
 ## Controls
 

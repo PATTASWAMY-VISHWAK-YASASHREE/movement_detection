@@ -153,6 +153,34 @@
             </div>
         </div>
         
+        <!-- QR Code Connect Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">📱 Connect Mobile Cameras</h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4 text-center">
+                        <img src="{{ qr_code_url }}" alt="QR Code to connect" class="img-fluid mb-2" style="max-width: 200px;">
+                        <p class="mb-0">Scan to connect a mobile device</p>
+                    </div>
+                    <div class="col-md-8">
+                        <h5>How to Connect:</h5>
+                        <ol>
+                            <li>Scan the QR code with your mobile device</li>
+                            <li>Open the link in your device's browser</li>
+                            <li>Allow camera permissions when prompted</li>
+                            <li>Click "Start Camera Stream" to begin</li>
+                        </ol>
+                        <div class="alert alert-info">
+                            <strong>Note:</strong> Mobile device must be on the same WiFi network as this server.
+                        </div>
+                        <p>Manual connection: <code>http://{{ server_ip }}:{{ server_port }}/camera</code></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Control Panel -->
         <div class="control-panel">
             <h5>🎛️ Control Panel</h5>
