@@ -29,6 +29,8 @@ import uuid
 import socket
 import cv2
 import numpy as np
+import qrcode
+from io import BytesIO
 from flask import Flask, render_template, request, jsonify, Response
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import psycopg2
@@ -41,7 +43,7 @@ app.config['SECRET_KEY'] = 'wireless_camera_security_system_2025'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 class WirelessCameraServer:
-    def __init__(self, host='localhost', port=3000):
+    def __init__(self, host='0.0.0.0', port=3000):
         self.host = host
         self.port = port
         self.connected_devices = {}

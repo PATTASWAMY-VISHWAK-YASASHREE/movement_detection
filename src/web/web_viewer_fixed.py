@@ -471,10 +471,23 @@ def main():
     
     if stats.get('total_images', 0) == 0:
         print("💡 No images found. Run 'python image_processor.py' to process existing images")
+      # Get local IP address
+    def get_local_ip():
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "localhost"
+    
+    server_ip = get_local_ip()
     
     # Start Flask app
     print("\n🚀 Starting optimized web server with lazy loading...")
-    print("🌐 Open your browser and go to: http://localhost:5000")
+    print(f"🌐 Open your browser and go to: http://{server_ip}:5000")
+    print("📱 Access from other devices on your network using the IP above")
     print("⚡ Images load only when requested - no more lag!")
     print("🔍 Use search to automatically load relevant images")
     print("⏹️  Press Ctrl+C to stop the server")
@@ -487,4 +500,5 @@ def main():
         viewer.close_db()
 
 if __name__ == "__main__":
-    main()
+    # Run the app on all interfaces by default
+    app.run(host='0.0.0.0', port=5000, debug=False)

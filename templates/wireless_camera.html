@@ -161,6 +161,14 @@
                         <strong>Camera Resolution:</strong> <span id="cameraResolution">Not detected</span>
                     </div>
                 </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <strong>Camera Type:</strong> <span id="cameraDirection">Not detected</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Connection Time:</strong> <span id="connectionTime">00:00:00</span>
+                    </div>
+                </div>
             </div>
             
             <div class="text-center">
@@ -274,6 +282,32 @@
                     <div class="h4 text-warning" id="motionAlerts">0</div>
                 </div>
             </div>
+            
+            <!-- Camera switcher buttons -->
+            <div class="mb-3">
+                <button id="startButton" class="btn btn-primary me-2">
+                    <i class="fas fa-play me-2"></i>Start Camera
+                </button>
+                <button id="stopButton" class="btn btn-secondary me-2" disabled>
+                    <i class="fas fa-stop me-2"></i>Stop Camera
+                </button>
+                <button id="switchCameraButton" class="btn btn-info d-none">
+                    <i class="fas fa-sync me-2"></i>Switch Camera
+                </button>
+            </div>
+            
+            <!-- Camera info card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Camera Stream Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Stream URL:</strong> <span id="streamUrl">Not started</span></p>
+                    <p class="mb-1"><strong>Resolution:</strong> <span id="streamResolution">Not started</span></p>
+                    <p class="mb-1"><strong>Frame Rate:</strong> <span id="streamFramerate">Not started</span></p>
+                    <p class="mb-0"><strong>Bitrate:</strong> <span id="streamBitrate">Not started</span></p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -289,6 +323,7 @@
                 this.framesSent = 0;
                 this.connectionStartTime = null;
                 this.sendInterval = null;
+                this.usingFrontCamera = true; // Track camera direction
                 
                 this.initializeUI();
                 this.connectToServer();
@@ -300,7 +335,7 @@
             
             initializeUI() {
                 document.getElementById('deviceId').textContent = this.deviceId;
-                  document.getElementById('startButton').addEventListener('click', () => {
+                document.getElementById('startButton').addEventListener('click', () => {
                     // Check HTTPS before attempting camera access
                     if (!checkHTTPS()) {
                         return;
@@ -310,6 +345,29 @@
                 
                 document.getElementById('stopButton').addEventListener('click', () => {
                     this.stopCamera();
+                });
+                
+                // Add camera switcher button handler
+                const switchCameraButton = document.getElementById('switchCameraButton');
+                switchCameraButton.addEventListener('click', () => {
+                    this.switchCamera();
+                });
+                
+                // Show switch camera button only on mobile devices
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    switchCameraButton.classList.remove('d-none');
+                }
+                
+                // Handle orientation changes on mobile
+                window.addEventListener('orientationchange', () => {
+                    // Small delay to let the UI update first
+                    setTimeout(() => {
+                        if (this.isStreaming) {
+                            // Update video element size
+                            const videoElement = document.getElementById('videoElement');
+                            videoElement.style.width = '100%';
+                        }
+                    }, 300);
                 });
             }
             
@@ -359,8 +417,7 @@
                 try {
                     // Hide any previous error alerts
                     document.getElementById('errorAlert').style.display = 'none';
-                    
-                    // Check if browser supports getUserMedia
+                      // Check if browser supports getUserMedia
                     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                         throw new Error('Camera API not supported in this browser');
                     }
@@ -372,15 +429,43 @@
                         return;
                     }
                     
-                    // Request camera access with enhanced error handling
-                    this.stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            width: { ideal: 640, max: 1280 },
-                            height: { ideal: 480, max: 720 },
-                            frameRate: { ideal: 15, max: 30 }
-                        },
-                        audio: false
-                    });
+                    // Show loading indicator while we request camera access
+                    this.showLoadingIndicator("Requesting camera access...");
+                    
+                    // Check if we're on a mobile device
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    
+                    try {
+                        // Request camera access with enhanced error handling
+                        // Different settings for mobile vs desktop
+                        if (isMobile) {
+                            // Mobile settings - prioritize rear camera and lower resolution for better performance
+                            this.stream = await navigator.mediaDevices.getUserMedia({
+                                video: {
+                                    facingMode: { ideal: "environment" }, // Prefer rear camera on mobile
+                                    width: { ideal: 640, max: 1280 },
+                                    height: { ideal: 480, max: 720 },
+                                    frameRate: { ideal: 15, max: 30 }
+                                },
+                                audio: false
+                            });
+                        } else {
+                            // Desktop settings
+                            this.stream = await navigator.mediaDevices.getUserMedia({
+                                video: {
+                                    width: { ideal: 640, max: 1280 },
+                                    height: { ideal: 480, max: 720 },
+                                    frameRate: { ideal: 15, max: 30 }
+                                },
+                                audio: false
+                            });
+                        }
+                        // Hide loading indicator
+                        this.hideLoadingIndicator();
+                    } catch (error) {
+                        this.hideLoadingIndicator();
+                        throw error;
+                    }
                     
                     const videoElement = document.getElementById('videoElement');
                     videoElement.srcObject = this.stream;
@@ -544,89 +629,76 @@
                 console.log('Camera stopped');
             }
             
-            startFrameCapture() {
-                const videoElement = document.getElementById('videoElement');
-                const canvas = document.getElementById('canvasElement');
-                const ctx = canvas.getContext('2d');
+            // Stop the camera stream but don't update UI or notify server
+            // Used when switching cameras
+            stopStream() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
                 
-                this.sendInterval = setInterval(() => {
-                    if (!this.isStreaming || !videoElement.videoWidth) return;
+                if (this.sendInterval) {
+                    clearInterval(this.sendInterval);
+                    this.sendInterval = null;
+                }
+                
+                const videoElement = document.getElementById('videoElement');
+                videoElement.srcObject = null;
+            }
+            
+            // Switch between front and rear cameras on mobile devices
+            async switchCamera() {
+                if (!this.isStreaming) return;
+                
+                try {
+                    this.showLoadingIndicator("Switching camera...");
                     
-                    // Set canvas size to match video
-                    canvas.width = videoElement.videoWidth;
-                    canvas.height = videoElement.videoHeight;
+                    // Stop current stream
+                    this.stopStream();
                     
-                    // Draw current frame to canvas
-                    ctx.drawImage(videoElement, 0, 0);
+                    // Toggle camera direction
+                    this.usingFrontCamera = !this.usingFrontCamera;
+                    const facingMode = this.usingFrontCamera ? "user" : "environment";
                     
-                    // Convert to base64 JPEG
-                    const imageData = canvas.toDataURL('image/jpeg', 0.7);
-                    
-                    // Send frame to server
-                    this.socket.emit('camera_frame', {
-                        device_id: this.deviceId,
-                        frame_data: imageData,
-                        timestamp: Date.now()
+                    // Start new stream with different camera
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: facingMode,
+                            width: { ideal: 640, max: 1280 },
+                            height: { ideal: 480, max: 720 },
+                            frameRate: { ideal: 15, max: 30 }
+                        },
+                        audio: false
                     });
                     
-                    this.framesSent++;
-                    document.getElementById('framesSent').textContent = this.framesSent;
+                    // Update video element
+                    const videoElement = document.getElementById('videoElement');
+                    videoElement.srcObject = this.stream;
                     
-                }, 200); // Send frame every 200ms (5 FPS)
-                
-                // Update connection time every second
-                setInterval(() => {
-                    if (this.connectionStartTime) {
-                        const elapsed = Date.now() - this.connectionStartTime;
-                        document.getElementById('connectionTime').textContent = 
-                            this.formatTime(elapsed);
-                    }
-                }, 1000);
-            }
-            
-            updateConnectionStatus(status) {
-                const indicator = document.getElementById('statusIndicator');
-                const statusText = document.getElementById('connectionStatus');
-                
-                indicator.className = 'status-indicator';
-                
-                switch (status) {
-                    case 'connecting':
-                        indicator.classList.add('status-connecting');
-                        statusText.textContent = 'Connecting...';
-                        break;
-                    case 'connected':
-                        indicator.classList.add('status-connected');
-                        statusText.textContent = 'Connected';
-                        break;
-                    case 'disconnected':
-                        indicator.classList.add('status-disconnected');
-                        statusText.textContent = 'Disconnected';
-                        break;
+                    // Update camera direction info
+                    document.getElementById('cameraDirection').textContent = 
+                        this.usingFrontCamera ? "Front" : "Rear";
+                        
+                    // Wait for video to be ready
+                    await new Promise((resolve) => {
+                        videoElement.onloadedmetadata = resolve;
+                    });
+                    
+                    // Update camera resolution
+                    const track = this.stream.getVideoTracks()[0];
+                    const settings = track.getSettings();
+                    document.getElementById('cameraResolution').textContent = 
+                        `${settings.width}x${settings.height}`;
+                        
+                    // Resume frame capture
+                    this.startFrameCapture();
+                    
+                    this.hideLoadingIndicator();
+                } catch (error) {
+                    this.hideLoadingIndicator();
+                    console.error('Error switching camera:', error);
+                    this.showError('Failed to switch camera: ' + error.message);
                 }
-            }
-            
-            updateServerStats(stats) {
-                document.getElementById('activeDevices').textContent = stats.active_devices || 0;
-                document.getElementById('motionAlerts').textContent = stats.motion_alerts || 0;
-            }
-            
-            handleMotionAlert(data) {
-                // Show brief visual indication of motion detection
-                document.body.style.background = '#ffebee';
-                setTimeout(() => {
-                    document.body.style.background = '';
-                }, 500);
-                
-                console.log('Motion detected:', data);
-            }
-              formatTime(milliseconds) {
-                const seconds = Math.floor(milliseconds / 1000);
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                const secs = seconds % 60;
-                
-                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
             }
         }
         
